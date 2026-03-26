@@ -340,6 +340,19 @@
                 });
             });
 
+            function setupEmploymentStatusListener(memberIndex) {
+                const statusSelect = document.querySelector(`select[name="members[${memberIndex}][employment_status]"]`);
+
+                if (!statusSelect) return;
+
+                statusSelect.addEventListener('change', function() {
+                    toggleBlokC(memberIndex);
+                });
+
+                // 🔥 INIT SAAT LOAD (INI PENTING DI EDIT)
+                toggleBlokC(memberIndex);
+            }
+
             function generateMemberForms(membersData) {
                 container.innerHTML = '';
 
@@ -353,6 +366,7 @@
 
                     // Update warna tombol untuk semua member
                     for (let i = 0; i < membersData.length; i++) {
+                        setupEmploymentStatusListener(i);
                         updateStepButtons(i);
                     }
                 }, 200);
@@ -361,6 +375,33 @@
                 setTimeout(() => {
                     validateKepalaKeluarga();
                 }, 300);
+            }
+
+            function toggleBlokC(memberIndex) {
+                const statusSelect = document.querySelector(`select[name="members[${memberIndex}][employment_status]"]`);
+                const blokCDiv = document.querySelector(`.step-${memberIndex}-2`);
+
+                if (!statusSelect || !blokCDiv) return;
+
+                const isWorking = statusSelect.value === 'Bekerja';
+
+                const mainOccupation = blokCDiv.querySelector(`input[name="members[${memberIndex}][main_occupation]"]`);
+                const employmentPosition = blokCDiv.querySelector(
+                    `select[name="members[${memberIndex}][employment_position]"]`);
+
+                if (isWorking) {
+                    mainOccupation.setAttribute('required', 'required');
+                    employmentPosition.setAttribute('required', 'required');
+                } else {
+                    mainOccupation.removeAttribute('required');
+                    employmentPosition.removeAttribute('required');
+
+                    // 🔥 BONUS: kosongkan value
+                    mainOccupation.value = '';
+                    employmentPosition.value = '';
+                }
+
+                updateStepButtons(memberIndex);
             }
 
             function createMemberForm(index, oldData = {}) {
@@ -403,7 +444,7 @@
                             <option value="">--- Pilih status Keluarga ---</option>
                             ${generateOptions([
                                 'Kepala Keluarga', 'Istri/Suami', 'Anak', 'Menantu', 
-                                'Cucu', 'Orang tua/Mertua', 'Pembantu', 'Sopir'
+                                'Cucu', 'Orang tua/Mertua', 'Pembantu', 'Sopir', 'Family lainnya'
                             ], oldData.status_in_family)}
                         </select>
                     </div>
@@ -498,7 +539,7 @@
                         <label class="block mb-2 text-sm font-medium text-gray-900">Status Ketenagakerjaan <span class="text-red-500">*</span></label>
                         <select name="members[${index}][employment_status]" class="bg-gray-50 border border-gray-300 rounded-lg w-full p-2.5" required>
                             <option value="">--- Pilih Status Ketenagakerjaan ---</option>
-                            ${generateOptions(['Bekerja', 'Sekolah', 'Mengurus Rumah Tangga', 'Lainnya', 'Pengangguran'], oldData.employment_status)}
+                            ${generateOptions(['Bekerja', 'Sekolah', 'Mengurus Rumah Tangga', 'Lainnya', 'Tidak Bekerja'], oldData.employment_status)}
                         </select>
                     </div>
                     
@@ -583,49 +624,78 @@
         `;
             }
 
-            // ============================================
-            // FUNGSI CEK STEP - Apakah semua field sudah terisi?
-            // ============================================
             function isStepComplete(memberIndex, stepIndex) {
                 const stepDiv = document.querySelector(`.step-${memberIndex}-${stepIndex}`);
                 if (!stepDiv) return false;
 
-                // Cari semua input dan select yang required di step ini
+                if (stepIndex === 2) {
+                    const statusSelect = document.querySelector(`select[name="members[${memberIndex}][employment_status]"]`);
+                    const value = statusSelect ? statusSelect.value : '';
+
+                    if (!value) return false;
+                    if (value !== 'Bekerja') return true;
+                }
+
                 const fields = stepDiv.querySelectorAll('input[required], select[required]');
 
-                // Kalau tidak ada field required, anggap complete
                 if (fields.length === 0) return true;
 
-                // Cek satu per satu
                 for (let field of fields) {
                     if (!field.value || field.value.trim() === '') {
-                        return false; // Ada yang kosong
+                        return false;
                     }
                 }
 
-                return true; // Semua terisi
+                return true;
             }
 
             // FUNGSI UPDATE WARNA TOMBOL
             function updateStepButtons(memberIndex) {
                 for (let step = 0; step <= 3; step++) {
-                    // Cari tombol berdasarkan onclick attribute
-                    const buttons = document.querySelectorAll(`button[onclick*="showStep(${memberIndex},${step})"]`);
+
+                    const buttons = document.querySelectorAll(
+                        `button[onclick*="showStep(${memberIndex},${step})"]`
+                    );
 
                     buttons.forEach(button => {
-                        // Hapus semua class warna sebelumnya
+
+                        // RESET semua style dulu
                         button.classList.remove(
                             'from-green-500', 'via-green-600', 'to-green-700',
-                            'from-blue-500', 'via-blue-600', 'to-blue-700'
+                            'from-blue-500', 'via-blue-600', 'to-blue-700',
+                            'from-gray-400', 'via-gray-500', 'to-gray-600',
+                            'cursor-not-allowed', 'opacity-60'
                         );
 
+                        // 🔥 KHUSUS BLOK C
+                        if (step === 2) {
+                            const statusSelect = document.querySelector(
+                                `select[name="members[${memberIndex}][employment_status]"]`
+                            );
+
+                            const value = statusSelect ? statusSelect.value : '';
+
+                            // ❌ kalau belum pilih ATAU tidak bekerja → disable
+                            if (!value || value !== 'Bekerja') {
+                                button.classList.add(
+                                    'from-gray-400', 'via-gray-500', 'to-gray-600',
+                                    'cursor-not-allowed', 'opacity-60'
+                                );
+
+                                button.disabled = true;
+                                return; // ⛔ stop di sini, jangan lanjut ke logic bawah
+                            } else {
+                                button.disabled = false;
+                            }
+                        }
+
+                        // ✅ NORMAL LOGIC (selain Blok C atau kalau bekerja)
                         if (isStepComplete(memberIndex, step)) {
-                            // HIJAU - semua sudah diisi
                             button.classList.add('from-green-500', 'via-green-600', 'to-green-700');
                         } else {
-                            // BIRU (default) - masih ada yang kosong
                             button.classList.add('from-blue-500', 'via-blue-600', 'to-blue-700');
                         }
+
                     });
                 }
             }
@@ -667,9 +737,19 @@
             }
 
             // Fungsi navigasi step
-            function showStep(member, step) {
+            function showStep(member, step, isPrev = false) {
+                if (step === 2) {
+                    const statusSelect = document.querySelector(`select[name="members[${member}][employment_status]"]`);
+                    const value = statusSelect ? statusSelect.value : '';
+
+                    if (value && value !== 'Bekerja') {
+                        step = isPrev ? 1 : 3;
+                    }
+                }
+
                 document.querySelectorAll(`.step-${member}-0, .step-${member}-1, .step-${member}-2, .step-${member}-3`)
                     .forEach(el => el.classList.add('hidden'));
+
                 document.querySelector(`.step-${member}-${step}`).classList.remove('hidden');
             }
 

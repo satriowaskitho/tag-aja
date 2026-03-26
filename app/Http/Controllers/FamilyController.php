@@ -92,11 +92,11 @@ class FamilyController extends Controller
             'members.*.highest_education_level.required' => 'Pendidikan tertinggi harus diisi',
             'members.*.highest_education_certificate.required' => 'Ijazah terakhir harus diisi',
             'members.*.employment_status.required' => 'Status ketenagakerjaan harus diisi',
-            'members.*.employment_position.required' => 'Status dalam pekerjaan harus diisi',
-            'members.*.main_occupation.required' => 'Pekerjaan utama harus diisi',
             'members.*.health_insurance.required' => 'Jaminan Kesehatan harus diisi',
             'members.*.stunting.required' => 'Status Stunting harus diisi',
             'members.*.disability.required' => 'Status disabilitas harus diisi',
+            'members.*.main_occupation.required_if' => 'Pekerjaan Utama wajib diisi jika status bekerja',
+            'members.*.employment_position.required_if' => 'Status Dalam Pekerjaan wajib diisi jika status bekerja',
         ];
 
         $validated = $request->validate([
@@ -122,7 +122,7 @@ class FamilyController extends Controller
             'members' => 'required|array',
             'members.*.full_name' => 'required|string|min:2|max:255',
             'members.*.nik' => 'required|numeric|digits:16|unique:family_members,nik',
-            'members.*.status_in_family' => 'required|in:Kepala Keluarga,Istri/Suami,Anak,Menantu,Cucu,Orang Tua/Mertua,Pembantu,Sopir',
+            'members.*.status_in_family' => 'required|in:Kepala Keluarga,Istri/Suami,Anak,Menantu,Cucu,Orang Tua/Mertua,Pembantu,Sopir,Family lainnya',
             'members.*.place_of_birth' => 'required',
             'members.*.date_of_birth' => 'required|date_format:m/d/Y',
             'members.*.gender' => 'required',
@@ -131,8 +131,8 @@ class FamilyController extends Controller
             'members.*.highest_education_level' => 'required',
             'members.*.highest_education_certificate' => 'required',
             'members.*.employment_status' => 'required',
-            'members.*.employment_position' => 'required',
-            'members.*.main_occupation' => 'required',
+            'members.*.employment_position' => 'nullable',
+            'members.*.main_occupation' => 'nullable',
             'members.*.health_insurance' => 'required',
             'members.*.stunting' => 'required',
             'members.*.disability' => 'required',
@@ -158,6 +158,23 @@ class FamilyController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors(['members' => 'NIK tidak boleh ada yang sama dalam satu keluarga']);
+        }
+
+        // Validasi conditional untuk main_occupation dan employment_position
+        foreach ($validated['members'] as $index => $member) {
+            if ($member['employment_status'] === 'Bekerja') {
+                // Jika status bekerja, maka main_occupation dan employment_position WAJIB diisi
+                if (empty($member['main_occupation'])) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(["members.$index.main_occupation" => 'Pekerjaan Utama wajib diisi jika status bekerja']);
+                }
+                if (empty($member['employment_position'])) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(["members.$index.employment_position" => 'Status Dalam Pekerjaan wajib diisi jika status bekerja']);
+                }
+            }
         }
 
         DB::beginTransaction();
@@ -396,11 +413,11 @@ class FamilyController extends Controller
             'members.*.highest_education_level.required' => 'Pendidikan tertinggi harus diisi',
             'members.*.highest_education_certificate.required' => 'Ijazah terakhir harus diisi',
             'members.*.employment_status.required' => 'Status ketenagakerjaan harus diisi',
-            'members.*.employment_position.required' => 'Status dalam pekerjaan harus diisi',
-            'members.*.main_occupation.required' => 'Pekerjaan utama harus diisi',
             'members.*.health_insurance.required' => 'Jaminan Kesehatan harus diisi',
             'members.*.stunting.required' => 'Status Stunting harus diisi',
             'members.*.disability.required' => 'Status disabilitas harus diisi',
+            'members.*.main_occupation.required_if' => 'Pekerjaan Utama wajib diisi jika status bekerja',
+            'members.*.employment_position.required_if' => 'Status Dalam Pekerjaan wajib diisi jika status bekerja',
         ];
 
         $validated = $request->validate([
@@ -424,8 +441,8 @@ class FamilyController extends Controller
             // MEMBERS
             'members' => 'required|array',
             'members.*.full_name' => 'required|string|min:2|max:255',
-            'members.*.nik' => 'required|numeric|digits:16|unique:family_members,nik,' . $id . ',family_id', // NIK unique kecuali milik keluarga ini
-            'members.*.status_in_family' => 'required|in:Kepala Keluarga,Istri/Suami,Anak,Menantu,Cucu,Orang Tua/Mertua,Pembantu,Sopir',
+            'members.*.nik' => 'required|numeric|digits:16',
+            'members.*.status_in_family' => 'required|in:Kepala Keluarga,Istri/Suami,Anak,Menantu,Cucu,Orang Tua/Mertua,Pembantu,Sopir,Family lainnya',
             'members.*.place_of_birth' => 'required',
             'members.*.date_of_birth' => 'required|date_format:m/d/Y',
             'members.*.gender' => 'required|in:Laki-laki,Perempuan',
@@ -434,8 +451,8 @@ class FamilyController extends Controller
             'members.*.highest_education_level' => 'required',
             'members.*.highest_education_certificate' => 'required',
             'members.*.employment_status' => 'required',
-            'members.*.employment_position' => 'required',
-            'members.*.main_occupation' => 'required',
+            'members.*.employment_position' => 'nullable',
+            'members.*.main_occupation' => 'nullable',
             'members.*.health_insurance' => 'required',
             'members.*.stunting' => 'required|in:Ya,Tidak',
             'members.*.disability' => 'required|in:Ya,Tidak',
@@ -461,6 +478,31 @@ class FamilyController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->withErrors(['members' => 'NIK tidak boleh ada yang sama dalam satu keluarga']);
+        }
+
+        foreach ($validated['members'] as &$member) {
+            if ($member['employment_status'] !== 'Bekerja') {
+                $member['main_occupation'] = null;
+                $member['employment_position'] = null;
+            }
+        }
+        unset($member);
+
+        // Validasi conditional untuk main_occupation dan employment_position
+        foreach ($validated['members'] as $index => $member) {
+            if ($member['employment_status'] === 'Bekerja') {
+                // Jika status bekerja, maka main_occupation dan employment_position WAJIB diisi
+                if (empty($member['main_occupation'])) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(["members.$index.main_occupation" => 'Pekerjaan Utama wajib diisi jika status bekerja']);
+                }
+                if (empty($member['employment_position'])) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->withErrors(["members.$index.employment_position" => 'Status Dalam Pekerjaan wajib diisi jika status bekerja']);
+                }
+            }
         }
 
         DB::beginTransaction();

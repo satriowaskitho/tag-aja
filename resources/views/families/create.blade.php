@@ -16,7 +16,7 @@
             <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
                 <section class="bg-white dark:bg-gray-900">
                     <div class="py-8 lg:py-16 px-4 mx-auto max-w-screen-md">
-                        <form action="{{ route('family.store') }}" method="POST" class="space-y-4 form"
+                        <form action="{{ route('family.store') }}" method="POST" class="space-y-4 form" id="main-form"
                             enctype="multipart/form-data">
                             @csrf
                             @if ($errors->any())
@@ -310,20 +310,63 @@
                     container.innerHTML += createMemberForm(index, data);
                 });
 
-                // Inisialisasi datepicker setelah form digenerate
                 setTimeout(() => {
                     initDatepickers();
 
-                    // Update warna tombol untuk semua member
                     for (let i = 0; i < membersData.length; i++) {
                         updateStepButtons(i);
+                        setupEmploymentStatusListener(i); // TAMBAHKAN INI
                     }
                 }, 200);
 
-                // Validasi kepala keluarga setelah form digenerate
                 setTimeout(() => {
                     validateKepalaKeluarga();
                 }, 300);
+            }
+
+            // Fungsi untuk mengatur tampilan Blok C berdasarkan employment_status
+            function toggleBlokC(memberIndex) {
+                const statusSelect = document.querySelector(`select[name="members[${memberIndex}][employment_status]"]`);
+                const blokCDiv = document.querySelector(`.step-${memberIndex}-2`);
+
+                if (!statusSelect || !blokCDiv) return;
+
+                const value = statusSelect.value;
+
+                // AMBIL SEMUA FIELD (BUKAN YANG REQUIRED SAJA)
+                const fields = blokCDiv.querySelectorAll('input, select');
+
+                if (value === 'Bekerja') {
+                    fields.forEach(field => {
+                        field.setAttribute('required', 'required');
+                    });
+                } else {
+                    fields.forEach(field => {
+                        field.removeAttribute('required');
+                    });
+                }
+
+                updateStepButtons(memberIndex);
+            }
+
+            // Fungsi untuk setup event listener pada status pekerjaan
+            function setupEmploymentStatusListener(memberIndex) {
+                const statusSelect = document.querySelector(`select[name="members[${memberIndex}][employment_status]"]`);
+                if (statusSelect) {
+                    // Hapus listener lama (pakai clone untuk menghindari duplikasi)
+                    const newSelect = statusSelect.cloneNode(true);
+                    statusSelect.parentNode.replaceChild(newSelect, statusSelect);
+
+                    newSelect.addEventListener('change', function() {
+                        toggleBlokC(memberIndex);
+
+                        // Update warna tombol
+                        updateStepButtons(memberIndex);
+                    });
+
+                    // Panggil sekali untuk inisialisasi
+                    toggleBlokC(memberIndex);
+                }
             }
 
             function createMemberForm(index, oldData = {}) {
@@ -366,7 +409,7 @@
                                 <option value="">--- Pilih status Keluarga ---</option>
                                 ${generateOptions([
                     'Kepala Keluarga', 'Istri/Suami', 'Anak', 'Menantu',
-                    'Cucu', 'Orang Tua/Mertua', 'Pembantu', 'Sopir'
+                    'Cucu', 'Orang Tua/Mertua', 'Pembantu', 'Sopir', 'Family lainnya'
                 ], oldData.status_in_family)}
                             </select>
                         </div>
@@ -461,7 +504,7 @@
                             <label class="block mb-2 text-sm font-medium text-gray-900">Status Ketenagakerjaan <span class="text-red-500">*</span></label>
                             <select name="members[${index}][employment_status]" class="bg-gray-50 border border-gray-300 rounded-lg w-full p-2.5" required>
                                 <option value="">--- Pilih Status Ketenagakerjaan ---</option>
-                                ${generateOptions(['Bekerja', 'Sekolah', 'Mengurus Rumah Tangga', 'Lainnya', 'Pengangguran'], oldData.employment_status)}
+                                ${generateOptions(['Bekerja', 'Sekolah', 'Mengurus Rumah Tangga', 'Lainnya', 'Tidak Bekerja'], oldData.employment_status)}
                             </select>
                         </div>
 
@@ -481,13 +524,13 @@
                         <div class="pb-4">
                             <label class="block mb-2 text-sm font-medium text-gray-900">Pekerjaan Utama <span class="text-red-500">*</span></label>
                             <input type="text" name="members[${index}][main_occupation]" value="${escapeHtml(oldData.main_occupation || '')}"
-                                class="block p-3 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300" required>
+                                class="block p-3 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300" ${oldData.employment_status === 'Bekerja' ? 'required' : ''}>
                         </div>
 
                         <!-- Status Dalam Pekerjaan -->
                         <div class="pb-4">
                             <label class="block mb-2 text-sm font-medium text-gray-900">Status Dalam Pekerjaan <span class="text-red-500">*</span></label>
-                            <select name="members[${index}][employment_position]" class="bg-gray-50 border border-gray-300 rounded-lg w-full p-2.5" required>
+                            <select name="members[${index}][employment_position]" class="bg-gray-50 border border-gray-300 rounded-lg w-full p-2.5" ${oldData.employment_status === 'Bekerja' ? 'required' : ''}>
                                 <option value="">--- Pilih Status Dalam Pekerjaan ---</option>
                                 ${generateOptions([
                     'Berusaha', 'Buruh/Karyawan/Pegawai Swasta',
@@ -498,7 +541,7 @@
                         </div>
 
                         <div class="flex justify-between space-x-5">
-                            <button type="button" onclick="nextStep(${index},1)"
+                            <button type="button" onclick="prevStep(${index},1)"
                                 class="w-full py-3 px-5 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800">Kembali</button>
                             <button type="button" onclick="nextStep(${index},3)"
                                 class="w-full py-3 px-5 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800">Selanjutnya</button>
@@ -539,19 +582,28 @@
                             </select>
                         </div>
 
-                        <button type="button" onclick="nextStep(${index},2)"
+                        <button type="button" onclick="prevStep(${index},2)"
                             class="w-full py-3 px-5 text-sm font-medium text-center text-white rounded-lg bg-primary-700 hover:bg-primary-800">Kembali</button>
                     </div>
                 </div>
             `;
             }
 
-            // ============================================
-            // FUNGSI CEK STEP - Apakah semua field sudah terisi?
-            // ============================================
             function isStepComplete(memberIndex, stepIndex) {
                 const stepDiv = document.querySelector(`.step-${memberIndex}-${stepIndex}`);
                 if (!stepDiv) return false;
+
+                // Khusus untuk Blok C (step 2)
+                if (stepIndex === 2) {
+                    const statusSelect = document.querySelector(`select[name="members[${memberIndex}][employment_status]"]`);
+                    const value = statusSelect ? statusSelect.value : '';
+
+                    // kalau belum pilih → belum complete
+                    if (!value) return false;
+
+                    // kalau sudah pilih tapi bukan bekerja → complete
+                    if (value !== 'Bekerja') return true;
+                }
 
                 // Cari semua input dan select yang required di step ini
                 const fields = stepDiv.querySelectorAll('input[required], select[required]');
@@ -569,24 +621,69 @@
                 return true; // Semua terisi
             }
 
-            // FUNGSI UPDATE WARNA TOMBOL
             function updateStepButtons(memberIndex) {
                 for (let step = 0; step <= 3; step++) {
-                    // Cari tombol berdasarkan onclick attribute
-                    const buttons = document.querySelectorAll(`button[onclick*="showStep(${memberIndex},${step})"]`);
 
+                    const buttons = document.querySelectorAll(
+                        `button[onclick*="showStep(${memberIndex},${step})"]`
+                    );
+
+                    if (step === 2) {
+                        const statusSelect = document.querySelector(
+                            `select[name="members[${memberIndex}][employment_status]"]`
+                        );
+
+                        const value = statusSelect ? statusSelect.value : '';
+
+                        buttons.forEach(button => {
+                            // RESET SEMUA STYLE
+                            button.classList.remove(
+                                'from-green-500', 'via-green-600', 'to-green-700',
+                                'from-blue-500', 'via-blue-600', 'to-blue-700',
+                                'from-gray-400', 'via-gray-500', 'to-gray-600',
+                                'cursor-not-allowed', 'opacity-60'
+                            );
+
+                            // ❌ BELUM PILIH → tetap biru normal
+                            if (!value) {
+                                button.disabled = false;
+                                button.classList.add('from-blue-500', 'via-blue-600', 'to-blue-700');
+                            }
+
+                            // ❌ TIDAK BEKERJA → disable + abu
+                            else if (value !== 'Bekerja') {
+                                button.disabled = true;
+                                button.classList.add(
+                                    'from-gray-400', 'via-gray-500', 'to-gray-600',
+                                    'cursor-not-allowed', 'opacity-60'
+                                );
+                            }
+
+                            // ✅ BEKERJA → normal logic
+                            else {
+                                button.disabled = false;
+
+                                if (isStepComplete(memberIndex, step)) {
+                                    button.classList.add('from-green-500', 'via-green-600', 'to-green-700');
+                                } else {
+                                    button.classList.add('from-blue-500', 'via-blue-600', 'to-blue-700');
+                                }
+                            }
+                        });
+
+                        continue; // skip ke step berikutnya
+                    }
+
+                    // STEP LAIN (A, B, D)
                     buttons.forEach(button => {
-                        // Hapus semua class warna sebelumnya
                         button.classList.remove(
                             'from-green-500', 'via-green-600', 'to-green-700',
                             'from-blue-500', 'via-blue-600', 'to-blue-700'
                         );
 
                         if (isStepComplete(memberIndex, step)) {
-                            // HIJAU - semua sudah diisi
                             button.classList.add('from-green-500', 'via-green-600', 'to-green-700');
                         } else {
-                            // BIRU (default) - masih ada yang kosong
                             button.classList.add('from-blue-500', 'via-blue-600', 'to-blue-700');
                         }
                     });
@@ -629,19 +726,30 @@
                 return div.innerHTML;
             }
 
-            // Fungsi navigasi step
-            function showStep(member, step) {
+            function showStep(member, step, isPrev = false) {
+                if (step === 2) {
+                    const statusSelect = document.querySelector(`select[name="members[${member}][employment_status]"]`);
+                    const value = statusSelect ? statusSelect.value : '';
+                    if (value && value !== 'Bekerja') {
+                        if (isPrev) {
+                            step = 1;
+                        } else {
+                            step = 3;
+                        }
+                    }
+                }
+
                 document.querySelectorAll(`.step-${member}-0, .step-${member}-1, .step-${member}-2, .step-${member}-3`)
                     .forEach(el => el.classList.add('hidden'));
                 document.querySelector(`.step-${member}-${step}`).classList.remove('hidden');
             }
 
             function nextStep(member, step) {
-                showStep(member, step);
+                showStep(member, step, false);
             }
 
             function prevStep(member, step) {
-                showStep(member, step);
+                showStep(member, step, true);
             }
 
             // Inisialisasi datepicker
@@ -732,78 +840,190 @@
                 reset: false
             });
         </script>
-
         <script>
-            // Geolocation
+            let map = null;
+            let marker = null;
+            let locationAccepted = false;
+            let latitudeInput = document.getElementById('latitude');
+            let longitudeInput = document.getElementById('longitude');
+
+            function disableSubmit() {
+                const submitBtn = document.querySelector('#main-form button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+
+            function enableSubmit() {
+                const submitBtn = document.querySelector('#main-form button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+
+            function showWarningMessage(message, isPermanent = false) {
+                const form = document.getElementById('main-form');
+                if (!form) return;
+
+                let warningMsg = document.getElementById('location-warning');
+                if (warningMsg) warningMsg.remove();
+
+                warningMsg = document.createElement('div');
+                warningMsg.id = 'location-warning';
+                warningMsg.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
+
+                if (isPermanent) {
+                    warningMsg.innerHTML = `
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div class="flex-1">
+                    <p class="font-semibold">⚠️ Akses Lokasi Diperlukan!</p>
+                    <p class="text-sm mt-1">${message}</p>
+                    <div class="mt-3 text-sm bg-yellow-50 p-3 rounded border border-yellow-200">
+                        <p class="font-medium mb-2">Cara mengaktifkan kembali akses lokasi:</p>
+                        <ol class="list-decimal list-inside space-y-1">
+                            <li>Klik ikon <strong>🔒 / 🛡️ / 🌐</strong> di sebelah kiri address bar</li>
+                            <li>Cari menu <strong>"Site settings"</strong> atau <strong>"Pengaturan situs"</strong></li>
+                            <li>Cari pengaturan <strong>"Location"</strong> atau <strong>"Lokasi"</strong></li>
+                            <li>Ubah dari <strong>"Blokir"</strong> menjadi <strong>"Izinkan"</strong></li>
+                            <li>Refresh halaman dengan tombol di bawah</li>
+                        </ol>
+                    </div>
+                    <button type="button" onclick="location.reload()" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition">
+                        🔄 Refresh Halaman
+                    </button>
+                </div>
+            </div>
+        `;
+                } else {
+                    warningMsg.innerHTML = `
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span class="font-medium">⚠️ ${message}</span>
+                </div>
+                <button type="button" onclick="requestLocationAgain()" class="bg-yellow-500 text-white px-4 py-1.5 rounded-lg hover:bg-yellow-600 text-sm font-medium transition">
+                    Coba Lagi
+                </button>
+            </div>
+        `;
+                }
+
+                const errorDiv = form.querySelector('.bg-red-100');
+                if (errorDiv) {
+                    form.insertBefore(warningMsg, errorDiv.nextSibling);
+                } else {
+                    form.insertBefore(warningMsg, form.firstChild);
+                }
+            }
+
+            function updateSubmitStatus() {
+                if (!locationAccepted) {
+                    disableSubmit();
+                } else {
+                    enableSubmit();
+                    const warningMsg = document.getElementById('location-warning');
+                    if (warningMsg) warningMsg.remove();
+                }
+            }
+
+            window.requestLocationAgain = function() {
+                locationAccepted = false;
+                const warningMsg = document.getElementById('location-warning');
+                if (warningMsg) warningMsg.remove();
+                disableSubmit();
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(locationSuccess, locationError);
+                }
+            };
+
+            function locationSuccess(position) {
+                locationAccepted = true;
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+
+                if (map) {
+                    map.setView([userLat, userLng], 13);
+                    marker.setLatLng([userLat, userLng]);
+                } else {
+                    map = L.map('map').setView([userLat, userLng], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+
+                    marker = L.marker([userLat, userLng], {
+                            draggable: true
+                        }).addTo(map)
+                        .bindPopup('📍 Lokasi Anda').openPopup();
+
+                    marker.on('dragend', function(e) {
+                        const pos = e.target.getLatLng();
+                        latitudeInput.value = pos.lat;
+                        longitudeInput.value = pos.lng;
+                    });
+
+                    map.on('click', function(e) {
+                        marker.setLatLng(e.latlng);
+                        latitudeInput.value = e.latlng.lat;
+                        longitudeInput.value = e.latlng.lng;
+                    });
+                }
+
+                marker.bindPopup('📍 Lokasi Anda').openPopup();
+                latitudeInput.value = userLat;
+                longitudeInput.value = userLng;
+                updateSubmitStatus();
+            }
+
+            function locationError(error) {
+                locationAccepted = false;
+
+                const defaultLat = 0.996857;
+                const defaultLng = 104.5126331;
+
+                if (map) {
+                    map.setView([defaultLat, defaultLng], 13);
+                    if (marker) marker.setLatLng([defaultLat, defaultLng]);
+                } else {
+                    map = L.map('map').setView([defaultLat, defaultLng], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© OpenStreetMap contributors'
+                    }).addTo(map);
+                    marker = L.marker([defaultLat, defaultLng]).addTo(map)
+                        .bindPopup('📍 Lokasi default').openPopup();
+                }
+
+                latitudeInput.value = defaultLat;
+                longitudeInput.value = defaultLng;
+
+                if (error.code === 1) {
+                    showWarningMessage('Anda telah memblokir akses lokasi untuk website ini.', true);
+                } else if (error.code === 2) {
+                    showWarningMessage('Informasi lokasi tidak tersedia.', false);
+                } else if (error.code === 3) {
+                    showWarningMessage('Waktu permintaan lokasi habis. Silakan coba lagi.', false);
+                } else {
+                    showWarningMessage('Gagal mendapatkan akses lokasi. Silakan coba lagi.', false);
+                }
+
+                disableSubmit();
+            }
+
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        const userLat = position.coords.latitude;
-                        const userLng = position.coords.longitude;
-
-                        const map = L.map('map').setView([userLat, userLng], 13);
-
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            maxZoom: 19,
-                            attribution: '© OpenStreetMap contributors'
-                        }).addTo(map);
-
-                        const marker = L.marker([userLat, userLng], {
-                                draggable: true
-                            }).addTo(map)
-                            .bindPopup('Anda berada di sini!').openPopup();
-
-                        marker.on('dragend', function(e) {
-                            const pos = e.target.getLatLng();
-                            document.getElementById('latitude').value = pos.lat;
-                            document.getElementById('longitude').value = pos.lng;
-                        });
-
-                        map.on('click', function(e) {
-                            marker.setLatLng(e.latlng);
-                            document.getElementById('latitude').value = e.latlng.lat;
-                            document.getElementById('longitude').value = e.latlng.lng;
-                        });
-
-                        document.getElementById('latitude').value = userLat;
-                        document.getElementById('longitude').value = userLng;
-                    },
-                    function(error) {
-                        console.error('Geolocation Error:', error.message);
-
-                        const defaultLat = -6.1751;
-                        const defaultLng = 106.8650;
-
-                        const map = L.map('map').setView([defaultLat, defaultLng], 13);
-
-                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            maxZoom: 19,
-                            attribution: '© OpenStreetMap contributors'
-                        }).addTo(map);
-
-                        L.marker([defaultLat, defaultLng]).addTo(map)
-                            .bindPopup('Lokasi default').openPopup();
-
-                        document.getElementById('latitude').value = defaultLat;
-                        document.getElementById('longitude').value = defaultLng;
-                    }
-                );
+                navigator.geolocation.getCurrentPosition(locationSuccess, locationError);
             } else {
-                const defaultLat = -6.1751;
-                const defaultLng = 106.8650;
-
-                const map = L.map('map').setView([defaultLat, defaultLng], 13);
-
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '© OpenStreetMap contributors'
-                }).addTo(map);
-
-                L.marker([defaultLat, defaultLng]).addTo(map)
-                    .bindPopup('Lokasi default').openPopup();
-
-                document.getElementById('latitude').value = defaultLat;
-                document.getElementById('longitude').value = defaultLng;
+                locationError({
+                    code: 0,
+                    message: 'Browser tidak mendukung geolocation'
+                });
             }
         </script>
         <script>
@@ -841,7 +1061,7 @@
                         preview.innerHTML = `
             <div class="relative inline-block">
                 <img src="${imageUrl}" 
-                     class="h-20 w-20 object-cover rounded border border-gray-300">
+                    class="h-20 w-20 object-cover rounded border border-gray-300">
                 <button type="button" 
                         onclick="removeTempPhoto()" 
                         class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
@@ -854,9 +1074,6 @@
             </script>
         @endif
         <script>
-            // ============================================
-            // OLD TEMP PHOTO (PAS ERROR)
-            // ============================================
             document.addEventListener('DOMContentLoaded', function() {
                 @if (old('temp_photo'))
                     const filename = "{{ old('temp_photo') }}";
@@ -960,45 +1177,6 @@
                 document.getElementById('house_photo').value = '';
                 document.getElementById('temp_photo').value = '';
             }
-        </script>
-
-        <script>
-            // ============================================
-            // DEPENDENT DROPDOWN KELURAHAN -> RT/RW
-            // ============================================
-            document.getElementById('kelurahan_id').addEventListener('change', function() {
-                const kelurahanId = this.value;
-                const rtRwSelect = document.getElementById('rt_rw_id');
-
-                rtRwSelect.innerHTML = '<option value="">--- Pilih RT/RW/DUSUN ---</option>';
-
-                if (kelurahanId) {
-                    fetch(`/get-rt-by-kelurahan/${kelurahanId}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            data.forEach(item => {
-                                const option = document.createElement('option');
-                                option.value = item.id;
-                                option.textContent = `[${item.kode_sls}] RT ${item.rt} / RW ${item.rw}`;
-                                rtRwSelect.appendChild(option);
-                            });
-                        });
-                }
-            });
-
-            // OLD VALUE UNTUK KELURAHAN
-            @if (old('kelurahan_id'))
-                document.addEventListener('DOMContentLoaded', function() {
-                    const kelurahanId = "{{ old('kelurahan_id') }}";
-                    const rtRwId = "{{ old('rt_rw_id') }}";
-
-                    if (kelurahanId) {
-                        document.getElementById('kelurahan_id').value = kelurahanId;
-                        document.getElementById('kelurahan_id').dispatchEvent(new Event('change'));
-                        setTimeout(() => document.getElementById('rt_rw_id').value = rtRwId, 500);
-                    }
-                });
-            @endif
         </script>
         <script>
             // ============================================
