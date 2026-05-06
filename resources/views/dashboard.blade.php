@@ -150,7 +150,7 @@
                         @foreach($latestFamilies as $family)
                         <div class="flex items-center justify-between border-b pb-2">
                             <div>
-                                <p class="text-sm font-medium text-gray-900">{{ $family->creator->name }}</p>
+                                <p class="text-sm font-medium text-gray-900">{{ $family->creator->name ?? 'Tidak diketahui' }}</p>
                                 <p class="text-xs text-gray-500">{{ $family->kelurahan->nama ?? '-' }} - {{ $family->rtRw ? 'RT '.$family->rtRw->rt.' RW '.$family->rtRw->rw : '-' }}</p>
                             </div>
                             <span class="text-xs bg-gray-100 px-2 py-1 rounded">{{ $family->created_at->diffForHumans() }}</span>

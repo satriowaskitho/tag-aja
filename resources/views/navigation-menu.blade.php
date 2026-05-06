@@ -24,6 +24,11 @@
                     <x-nav-link href="{{ route('family.create') }}" :active="request()->routeIs('family.create')">
                         {{ __('Tambah Keluarga') }}
                     </x-nav-link>
+                    @if (auth()->user()->role === 'admin')
+                    <x-nav-link href="{{ route('user.index') }}" :active="request()->routeIs('user.index')">
+                        {{ __('Manajemen Pengguna') }}
+                    </x-nav-link>
+                    @endif
                 </div>
             </div>
 
@@ -159,6 +164,9 @@
             </x-responsive-nav-link>
             <x-responsive-nav-link href="{{ route('family.create') }}" :active="request()->routeIs('family.create')">
                 {{ __('Tambah Keluarga') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link href="{{ route('user.index') }}" :active="request()->routeIs('user.index')">
+                {{ __('Manajemen Pengguna') }}
             </x-responsive-nav-link>
         </div>
 

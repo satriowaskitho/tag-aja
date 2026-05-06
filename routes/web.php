@@ -4,6 +4,8 @@ use App\Http\Controllers\FamilyController;
 use App\Http\Controllers\FamilyMemberController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -34,4 +36,11 @@ Route::middleware([
     Route::get('/families/export', [FamilyController::class, 'export'])->name('families.export');
     Route::get('/family-members/export', [FamilyMemberController::class, 'export'])->name('family-members.export');
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth'])->name('dashboard');
+
+    // routes/web.php
+    Route::get('user.index', [UserController::class, 'index'])->name('user.index');
+    Route::post('user.store', [UserController::class, 'store'])->name('user.store');
+    Route::get('user/{id}/edit', [UserController::class, 'edit'])->name('user.edit');
+    Route::put('user/{id}', [UserController::class, 'update'])->name('user.update');
+    Route::delete('user.delete/{id}', [UserController::class, 'destroy'])->name('user.destroy');
 });
