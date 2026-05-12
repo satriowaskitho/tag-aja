@@ -78,7 +78,12 @@ class UserController extends Controller
 
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::withCount('families')->findOrFail($id);
+
+        if ($user->families_count > 0) {
+            return redirect()->route('user.index')->with('error', 'Tidak dapat menghapus pengguna! Pengguna ini memiliki data tag keluarga yang terkait.');
+        }
+
         $user->delete();
         return redirect()->route('user.index')->with('status', 'Pengguna berhasil dihapus!');
     }

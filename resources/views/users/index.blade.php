@@ -7,9 +7,9 @@
 
     <!-- NOTIFIKASI SUKSES -->
     @if (session('status'))
-        <div class="max-w-7xl mx-auto py-1 px-4 sm:px-6 lg:px-8 items-start justify-start">
+        <div class="max-w-7xl mx-auto py-1 px-4 sm:px-6 lg:px-8 items-start justify-start z-50 relative">
             <div id='alert'
-                class="fixed alert w-auto flex items-center p-2 mt-1 text-base text-green-800 border border-green-300 rounded-lg bg-green-50"
+                class="fixed alert auto-dismiss-alert w-auto flex items-center p-2 mt-1 text-base text-green-800 border border-green-300 rounded-lg bg-green-50"
                 role="alert">
                 <svg class="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                     fill="currentColor" viewBox="0 0 20 20">
@@ -19,6 +19,29 @@
                 <span class="sr-only">Info</span>
                 <div class="message-alert">
                     <span class="font-medium">Yey!</span> {{ session('status') }}
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- NOTIFIKASI ERROR / VALIDASI -->
+    @if (session('error') || $errors->any())
+        <div class="max-w-7xl mx-auto py-1 px-4 sm:px-6 lg:px-8 items-start justify-start z-50 relative">
+            <div class="fixed alert auto-dismiss-alert w-auto flex items-center p-2 mt-1 text-base text-red-800 border border-red-300 rounded-lg bg-red-50"
+                role="alert">
+                <svg class="flex-shrink-0 inline w-4 h-4 me-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                        d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM10 14a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM10 5a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V6a1 1 0 0 1 1-1Z" />
+                </svg>
+                <span class="sr-only">Error</span>
+                <div class="message-alert">
+                    <span class="font-medium">Gagal!</span> 
+                    @if(session('error'))
+                        {{ session('error') }}
+                    @else
+                        Ada kesalahan pada input data (contoh: email sudah dipakai, password kurang dari 6 karakter). Silakan coba lagi.
+                    @endif
                 </div>
             </div>
         </div>
@@ -247,22 +270,20 @@
         <script>
             // Pastikan alert ditampilkan hanya jika ada session status
             document.addEventListener('DOMContentLoaded', function() {
-                // Ambil elemen alert
-                const alert = document.getElementById('alert');
+                // Ambil semua elemen alert
+                const alerts = document.querySelectorAll('.auto-dismiss-alert');
 
-                // Cek jika alert ada
-                if (alert) {
-                    // Tunggu 2 detik, kemudian animasikan ke opacity 0
+                alerts.forEach(alert => {
+                    // Tunggu 3 detik, kemudian animasikan ke opacity 0
                     setTimeout(function() {
-                        alert.classList.add('opacity-0'); // Menambahkan kelas untuk menghilangkan alert
-                        alert.classList.remove('opacity-100'); // Menghapus kelas yang membuat alert terlihat
-
+                        alert.classList.add('transition-opacity', 'duration-1000', 'opacity-0'); 
+                        
                         // Setelah animasi selesai (1 detik), hapus elemen dari DOM
                         setTimeout(function() {
                             alert.remove();
-                        }, 1000); // 1000ms = 1 detik untuk waktu transisi
-                    }, 3000); // 2000ms = 2 detik sebelum menghilang
-                }
+                        }, 1000); 
+                    }, 4000); 
+                });
             });
         </script>
         <script>
@@ -410,7 +431,7 @@
                     .then(user => {
                         document.getElementById('modal-title').innerText = 'Edit Pengguna';
                         document.getElementById('form-method').value = 'PUT';
-                        form.action = `/user.update/${user.id}`;
+                        form.action = `/user/${user.id}`;
                         document.getElementById('user-id').value = user.id;
                         document.getElementById('user-name').value = user.name;
                         document.getElementById('user-email').value = user.email;
